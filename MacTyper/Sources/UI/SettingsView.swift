@@ -68,25 +68,35 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Language hints")
-                    TextField("e.g. en-US,ru-RU — empty = auto-detect", text: Binding(
+                    Text("Languages")
+                    LanguagePicker(selection: Binding(
                         get: { settings.languageHints },
                         set: { settings.languageHints = $0 }))
-                        .textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled()
-                    Text("Comma-separated BCP-47 codes; hinting the languages you actually speak improves recognition.")
+                    Text("Hinting the languages you actually speak improves recognition; none selected = auto-detect.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Custom vocabulary")
-                    TextField("names, jargon, comma-separated", text: Binding(
+                    TextEditor(text: Binding(
                         get: { settings.vocabulary },
-                        set: { settings.vocabulary = $0 }),
-                        axis: .vertical)
-                        .lineLimit(4...20)
+                        set: { settings.vocabulary = $0 }))
+                        .font(.body)
                         .multilineTextAlignment(.leading)
-                        .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
+                        .scrollContentBackground(.hidden)
+                        .padding(6)
+                        .frame(height: 104)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(nsColor: .textBackgroundColor))
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(.quaternary)
+                        }
+                    Text("Comma-separated names and jargon.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
