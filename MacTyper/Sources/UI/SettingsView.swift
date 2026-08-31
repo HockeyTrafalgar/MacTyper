@@ -6,6 +6,8 @@ struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
     @State private var apiKeyDraft: String = AppSettings.shared.apiKey
     @State private var apiKeySaved = false
+    @State private var validating = false
+    @State private var validation: (ok: Bool, message: String)?
 
     var onMouseTriggerChanged: () -> Void = {}
 
@@ -15,15 +17,29 @@ struct SettingsView: View {
                 SecureField("API key", text: $apiKeyDraft)
                     .textFieldStyle(.roundedBorder)
                 HStack {
-                    Button("Save Key") {
-                        settings.apiKey = apiKeyDraft
+                    Button("Save & Test Key") {
+                        let key = apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                        settings.apiKey = key
                         apiKeySaved = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { apiKeySaved = false }
+                        validating = true
+                        validation = nil
+                        Task {
+                            let result = await APIKeyValidator.validate(key)
+                            await MainActor.run {
+                                validation = result
+                                validating = false
+                            }
+                        }
                     }
-                    .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-                    if apiKeySaved {
-                        Label("Saved to Keychain", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                    .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty || validating)
+                    if validating {
+                        ProgressView().controlSize(.small)
+                        Text("Checking key…").foregroundStyle(.secondary)
+                    } else if let validation {
+                        Label(validation.message,
+                              systemImage: validation.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(validation.ok ? .green : .red)
+                            .help(validation.message)
                     } else if settings.apiKeyPresent {
                         Label("Key stored in Keychain", systemImage: "key.fill")
                             .foregroundStyle(.secondary)

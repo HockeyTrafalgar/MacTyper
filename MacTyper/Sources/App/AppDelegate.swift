@@ -44,11 +44,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in self?.showSettings() }
         }
 
+        // Debug/testing hook: `notifyutil`-free way to toggle dictation from
+        // scripts (used by the test harness; harmless locally).
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.timurvalishev.mactyper.toggle"),
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Log.app.info("toggle via distributed notification")
+            Task { @MainActor in self?.controller.toggleFromMenu() }
+        }
+
         // Microphone: prompt from onboarding/launch, not mid-first-dictation.
         if !Permissions.microphoneGranted {
             Permissions.requestMicrophone { granted in
                 Log.app.info("microphone request → \(granted)")
             }
+        }
+        // Register with TCC so MacTyper appears in the Input Monitoring
+        // list right away (the row does not exist until the app asks).
+        if !Permissions.inputMonitoringGranted {
+            Permissions.requestInputMonitoring()
         }
         audio.start()
 
@@ -64,10 +79,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// missing (a tap created before the grant stays dead — recreate once
     /// events can actually flow).
     private func startInputMonitors() {
-        let keyboardOK = hotkeys.start()
-        var mouseOK = true
+        // A tap created without Input Monitoring may "succeed" and then be
+        // silently disabled by the system on the first event — preflight is
+        // the real health signal, tapCreate alone is not.
+        let listenGranted = Permissions.inputMonitoringGranted
+        let keyboardOK = hotkeys.start() && listenGranted
+        var mouseOK = listenGranted
         if AppSettings.shared.mouseTriggerEnabled {
-            mouseOK = mouse.start()
+            mouseOK = mouse.start() && listenGranted
         }
         if keyboardOK && mouseOK {
             tapRetryTimer?.invalidate()

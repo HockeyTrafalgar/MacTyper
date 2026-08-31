@@ -92,6 +92,13 @@ enum AXQueries {
     /// (permissive for apps with no AX data — Electron, GPU terminals).
     /// CGEventTap mouse coordinates are already top-left global — no flip.
     static func clickShouldStartDictation(x: Double, y: Double) -> Bool {
+        // Without Accessibility, every query below fails and the permissive
+        // default would fire the trigger on ANY long hold anywhere. Blind ≠
+        // permissive: require the permission before allowing mouse starts.
+        guard AXIsProcessTrusted() else {
+            Log.input.warning("mouse trigger blocked: Accessibility permission missing")
+            return false
+        }
         var pointState = Editability.unknown
         var elRef: AXUIElement?
         if AXUIElementCopyElementAtPosition(systemWide, Float(x), Float(y), &elRef) == .success,

@@ -40,6 +40,7 @@ actor GeminiLiveSession {
     private var closing = false
     private var aborted = false
     private var failed = false
+    private(set) var errorText: String?
     private var readerFinished = false
     private var lastEventAt = ContinuousClock.now
     private let startedAt = ContinuousClock.now
@@ -85,15 +86,21 @@ actor GeminiLiveSession {
         let text = String(decoding: data, as: UTF8.self)
         task.send(.string(text)) { [weak self] error in
             if let error {
-                Log.gemini.error("ws send failed: \(error.localizedDescription)")
-                Task { await self?.markFailed() }
+                Log.gemini.error("ws send failed: \(error.localizedDescription, privacy: .public)")
+                Task { await self?.markFailed(error.localizedDescription) }
             }
         }
     }
 
-    private func markFailed() {
+    private func markFailed(_ reason: String) {
         failed = true
+        if errorText == nil { errorText = reason }
         readerFinished = true
+    }
+
+    /// Set after a failed session: human-readable reason for the HUD.
+    func failureDescription() -> String? {
+        failed ? errorText : nil
     }
 
     // MARK: - Client API
@@ -197,8 +204,16 @@ actor GeminiLiveSession {
                 if readerFinished { return }
             } catch {
                 if !closing && !aborted {
-                    Log.gemini.error("ws receive failed: \(error.localizedDescription)")
+                    // Server rejections (bad key, bad model) surface as a
+                    // close code + reason — capture them for the HUD.
+                    var reason = error.localizedDescription
+                    if let task = self.task, task.closeCode != .invalid {
+                        let detail = task.closeReason.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                        reason = "server closed (\(task.closeCode.rawValue)) \(detail)"
+                    }
+                    Log.gemini.error("ws receive failed: \(reason, privacy: .public)")
                     failed = true
+                    if errorText == nil { errorText = reason }
                 }
                 readerFinished = true
                 return

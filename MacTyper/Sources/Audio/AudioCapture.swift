@@ -131,6 +131,34 @@ final class AudioCapture {
     private let levelRelease = 0.3
     private let levelRef = 0.12
 
+    /// Convert one input buffer to 16 kHz mono Int16 PCM. Static and pure
+    /// (converter carries the resampler state between calls) so it's unit-
+    /// testable without a live microphone.
+    static func convertToWireFormat(_ buffer: AVAudioPCMBuffer,
+                                    using converter: AVAudioConverter,
+                                    outFormat: AVAudioFormat) -> Data? {
+        let ratio = outFormat.sampleRate / buffer.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
+        guard let out = AVAudioPCMBuffer(pcmFormat: outFormat, frameCapacity: capacity) else { return nil }
+        var fed = false
+        var error: NSError?
+        converter.convert(to: out, error: &error) { _, outStatus in
+            if fed {
+                outStatus.pointee = .noDataNow
+                return nil
+            }
+            fed = true
+            outStatus.pointee = .haveData
+            return buffer
+        }
+        if let error {
+            Log.audio.error("convert failed: \(error.localizedDescription)")
+            return nil
+        }
+        guard out.frameLength > 0, let int16 = out.int16ChannelData?[0] else { return nil }
+        return Data(bytes: int16, count: Int(out.frameLength) * MemoryLayout<Int16>.size)
+    }
+
     private func handleBuffer(_ buffer: AVAudioPCMBuffer) {
         queue.async { [weak self] in
             guard let self else { return }
@@ -153,26 +181,11 @@ final class AudioCapture {
             self.micLevelSmoothed += coeff * (target - self.micLevelSmoothed)
 
             // Convert to 16 kHz mono Int16 — exactly Gemini's wire format.
-            let ratio = self.outFormat.sampleRate / buffer.format.sampleRate
-            let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
-            guard let out = AVAudioPCMBuffer(pcmFormat: self.outFormat, frameCapacity: capacity) else { return }
-            var fed = false
-            var error: NSError?
-            converter.convert(to: out, error: &error) { _, outStatus in
-                if fed {
-                    outStatus.pointee = .noDataNow
-                    return nil
-                }
-                fed = true
-                outStatus.pointee = .haveData
-                return buffer
-            }
-            if let error {
-                Log.audio.error("convert failed: \(error.localizedDescription)")
+            guard let data = Self.convertToWireFormat(buffer, using: converter, outFormat: self.outFormat),
+                  !data.isEmpty else {
+                Log.audio.error("conversion produced no data (in: \(buffer.format.sampleRate) Hz, \(buffer.frameLength) frames)")
                 return
             }
-            guard out.frameLength > 0, let int16 = out.int16ChannelData?[0] else { return }
-            let data = Data(bytes: int16, count: Int(out.frameLength) * MemoryLayout<Int16>.size)
             self.onAudio?(data, self.micLevelSmoothed)
         }
     }

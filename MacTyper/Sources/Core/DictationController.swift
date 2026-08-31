@@ -113,8 +113,9 @@ final class DictationController {
         self.session = nil
         Task { [weak self] in
             let text = await session.finish()
+            let failure = await session.failureDescription()
             await MainActor.run {
-                self?.deliver(text)
+                self?.deliver(text, failure: failure)
             }
         }
     }
@@ -161,12 +162,17 @@ final class DictationController {
 
     // MARK: - Delivery
 
-    private func deliver(_ text: String?) {
+    private func deliver(_ text: String?, failure: String? = nil) {
         defer { finishCleanup() }
         guard !cancelled else { return }
         guard let text, !text.isEmpty else {
-            Log.app.warning("no transcript — nothing to paste")
-            overlay.showError("No speech recognized", autoHideAfter: 1.2)
+            if let failure {
+                Log.app.error("session failed: \(failure, privacy: .public)")
+                overlay.showError("Transcription failed — \(Self.friendlyFailure(failure))", autoHideAfter: 4)
+            } else {
+                Log.app.warning("no transcript — nothing to paste")
+                overlay.showError("No speech recognized", autoHideAfter: 1.2)
+            }
             return
         }
         if let t0 = stopRequestedAt {
@@ -178,6 +184,18 @@ final class DictationController {
         paste.paste(text + " ")
         paste.sessionRestore()
         overlay.hide()
+    }
+
+    private static func friendlyFailure(_ raw: String) -> String {
+        let lower = raw.lowercased()
+        if lower.contains("api key") || lower.contains("api_key") || lower.contains("unauthenticated")
+            || lower.contains("permission") || lower.contains("403") || lower.contains("401") {
+            return "check your Gemini API key in Settings"
+        }
+        if lower.contains("offline") || lower.contains("not connected") || lower.contains("network") {
+            return "no internet connection"
+        }
+        return String(raw.prefix(120))
     }
 
     private func finishCleanup() {
