@@ -145,7 +145,32 @@ struct MacTyperMain {
         app.delegate = delegate
         app.setActivationPolicy(.accessory)  // LSUIElement — no Dock icon
         app.mainMenu = makeMainMenu()
+        installEditKeyFallback()
         app.run()
+    }
+
+    /// Belt-and-suspenders for Edit shortcuts in our own windows: menu key-
+    /// equivalent dispatch can be unreliable in accessory apps, so handle
+    /// ⌘V/⌘C/⌘X/⌘A/⌘Z directly by sending the standard responder actions.
+    private static func installEditKeyFallback() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard mods == .command || mods == [.command, .shift] else { return event }
+            let key = event.charactersIgnoringModifiers?.lowercased()
+            let action: Selector?
+            switch key {
+            case "v": action = #selector(NSText.paste(_:))
+            case "c": action = #selector(NSText.copy(_:))
+            case "x": action = #selector(NSText.cut(_:))
+            case "a": action = #selector(NSText.selectAll(_:))
+            case "z": action = mods.contains(.shift) ? Selector(("redo:")) : Selector(("undo:"))
+            default: action = nil
+            }
+            if let action, NSApp.sendAction(action, to: nil, from: nil) {
+                return nil  // handled
+            }
+            return event
+        }
     }
 
     /// Even a menu-bar app needs a main menu: ⌘V/⌘C/⌘X/⌘A in text fields
