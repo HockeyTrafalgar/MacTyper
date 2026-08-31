@@ -158,6 +158,37 @@ struct MacTyperMain {
         let delegate = AppDelegate()
         app.delegate = delegate
         app.setActivationPolicy(.accessory)  // LSUIElement — no Dock icon
+        app.mainMenu = makeMainMenu()
         app.run()
+    }
+
+    /// Even a menu-bar app needs a main menu: ⌘V/⌘C/⌘X/⌘A in text fields
+    /// (e.g. the API-key field) are dispatched through the Edit menu's key
+    /// equivalents and silently do nothing without one.
+    private static func makeMainMenu() -> NSMenu {
+        let mainMenu = NSMenu()
+
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        appMenu.addItem(withTitle: "Close Window",
+                        action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        appMenu.addItem(withTitle: "Quit MacTyper",
+                        action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "Edit")
+        editItem.submenu = editMenu
+        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All",
+                         action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        return mainMenu
     }
 }
