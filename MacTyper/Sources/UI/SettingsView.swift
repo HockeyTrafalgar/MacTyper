@@ -14,8 +14,10 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Gemini API") {
-                SecureField("API key", text: $apiKeyDraft)
+                TextField("API key", text: $apiKeyDraft)
                     .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .font(.system(.body, design: .monospaced))
                 HStack {
                     Button("Save & Test Key") {
                         let key = apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
