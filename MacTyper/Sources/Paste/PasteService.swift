@@ -8,9 +8,10 @@ import CoreGraphics
 final class PasteService {
     private let settings = AppSettings.shared
 
-    // Per-session clipboard snapshot (string contents only, like the
-    // Python/pyperclip original; rich content is not restored).
-    private var original: String?
+    // Per-session clipboard snapshot: complete pasteboard items (every
+    // type's data), so images, files and rich text survive the restore —
+    // not just plain strings.
+    private var originalItems: [[NSPasteboard.PasteboardType: Data]] = []
     private var lastWrite: String?
     private var wrote = false
 
@@ -21,11 +22,21 @@ final class PasteService {
     /// Snapshot the user's clipboard at dictation-session start — the only
     /// moment it still holds THEIR content.
     func sessionBegin() {
-        original = nil
+        originalItems = []
         lastWrite = nil
         wrote = false
         guard settings.restoreClipboard else { return }
-        original = NSPasteboard.general.string(forType: .string)
+        for item in NSPasteboard.general.pasteboardItems ?? [] {
+            var payload: [NSPasteboard.PasteboardType: Data] = [:]
+            for type in item.types {
+                // Lazily-promised types can return nil; keep what we can.
+                if let data = item.data(forType: type) {
+                    payload[type] = data
+                }
+            }
+            if !payload.isEmpty { originalItems.append(payload) }
+        }
+        Log.paste.debug("clipboard snapshot: \(self.originalItems.count) item(s)")
     }
 
     /// Paste `text` into the focused app. Returns false when macOS blocked
@@ -83,17 +94,34 @@ final class PasteService {
     /// text is still on the pasteboard — never clobbers something the user
     /// copied after dictating.
     func sessionRestore() {
-        guard settings.restoreClipboard, wrote,
-              let original, let lastWrite, original != lastWrite else { return }
+        guard settings.restoreClipboard, wrote, let lastWrite,
+              !originalItems.isEmpty else { return }
+        // Skip when the snapshot is just the same string we pasted.
+        if originalItems.count == 1,
+           let data = originalItems[0][.string],
+           String(data: data, encoding: .utf8) == lastWrite {
+            return
+        }
+        let items = originalItems
         let delay = settings.clipboardRestoreDelayS
         DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
             let pb = NSPasteboard.general
-            if pb.string(forType: .string) == lastWrite {
-                pb.clearContents()
-                pb.setString(original, forType: .string)
-                Log.paste.debug("clipboard restored to pre-dictation contents")
-            } else {
+            guard pb.string(forType: .string) == lastWrite else {
                 Log.paste.debug("clipboard changed since our paste — not restoring")
+                return
+            }
+            let restored = items.map { payload -> NSPasteboardItem in
+                let item = NSPasteboardItem()
+                for (type, data) in payload {
+                    item.setData(data, forType: type)
+                }
+                return item
+            }
+            pb.clearContents()
+            if pb.writeObjects(restored) {
+                Log.paste.debug("clipboard restored (\(items.count) item(s), incl. non-text types)")
+            } else {
+                Log.paste.warning("clipboard restore write failed")
             }
         }
     }
