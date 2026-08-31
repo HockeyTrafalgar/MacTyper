@@ -3,6 +3,7 @@ import AppKit
 import ApplicationServices
 import AVFoundation
 import CoreGraphics
+import IOKit.hid
 
 /// TCC preflight/request helpers for the three permissions MacTyper needs.
 ///
@@ -26,6 +27,7 @@ enum Permissions {
 
     static var inputMonitoringGranted: Bool {
         CGPreflightListenEventAccess()
+            || IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
     }
 
     static var allGranted: Bool {
@@ -47,7 +49,12 @@ enum Permissions {
     }
 
     static func requestInputMonitoring() {
-        CGRequestListenEventAccess()
+        // IOHIDRequestAccess is what actually registers the app in the
+        // System Settings → Input Monitoring list and pops the system
+        // prompt; CGRequestListenEventAccess alone often does neither.
+        let hid = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        let cg = CGRequestListenEventAccess()
+        Log.app.info("input monitoring request: iohid=\(hid) cg=\(cg)")
     }
 
     static func openSystemSettings(pane: Pane) {
