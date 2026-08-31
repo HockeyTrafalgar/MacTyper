@@ -8,9 +8,31 @@ struct SettingsView: View {
     @State private var apiKeySaved = false
     @State private var validating = false
     @State private var validation: (ok: Bool, message: String)?
+    @State private var modelOptions: [String] = []
+    @State private var modelsLoading = false
 
     var onMouseTriggerChanged: () -> Void = {}
     var onAllPermissionsGranted: () -> Void = {}
+
+    /// Fetched models plus the currently selected one (so the picker never
+    /// shows an empty selection, even offline or with no key).
+    private var allModelOptions: [String] {
+        var options = modelOptions
+        if !options.contains(settings.geminiModel) {
+            options.insert(settings.geminiModel, at: 0)
+        }
+        return options
+    }
+
+    private func loadModels() async {
+        guard modelOptions.isEmpty, settings.apiKeyPresent else { return }
+        modelsLoading = true
+        let models = await ModelCatalog.fetchLiveModels(apiKey: settings.apiKey)
+        await MainActor.run {
+            modelOptions = models
+            modelsLoading = false
+        }
+    }
 
     var body: some View {
         Form {
@@ -63,19 +85,25 @@ struct SettingsView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Model")
-                    TextField("", text: Binding(
+                    HStack {
+                        Text("Model")
+                        if modelsLoading {
+                            ProgressView().controlSize(.mini)
+                        }
+                    }
+                    Picker("", selection: Binding(
                         get: { settings.geminiModel },
-                        set: { settings.geminiModel = $0 }),
-                        prompt: Text("gemini-3.5-transcribe-live"))
-                        .labelsHidden()
-                        .multilineTextAlignment(.leading)
-                        .textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("Gemini Live transcription model ID — change only when Google ships a newer one.")
+                        set: { settings.geminiModel = $0 })) {
+                        ForEach(allModelOptions, id: \.self) { model in
+                            Text(model).tag(model)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Live transcription models available to your API key.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                .task { await loadModels() }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Languages")
                     LanguagePicker(selection: Binding(
