@@ -57,15 +57,34 @@ struct SettingsView: View {
                      destination: URL(string: "https://aistudio.google.com/apikey")!)
                     .font(.caption)
 
-                TextField("Model", text: Binding(
-                    get: { settings.geminiModel },
-                    set: { settings.geminiModel = $0 }))
-                TextField("Language hints (e.g. en-US,ru-RU; empty = auto)", text: Binding(
-                    get: { settings.languageHints },
-                    set: { settings.languageHints = $0 }))
-                TextField("Custom vocabulary (comma-separated)", text: Binding(
-                    get: { settings.vocabulary },
-                    set: { settings.vocabulary = $0 }))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Model")
+                    TextField("gemini-3.5-transcribe-live", text: Binding(
+                        get: { settings.geminiModel },
+                        set: { settings.geminiModel = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                    Text("Gemini Live transcription model ID — change only when Google ships a newer one.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Language hints")
+                    TextField("e.g. en-US,ru-RU — empty = auto-detect", text: Binding(
+                        get: { settings.languageHints },
+                        set: { settings.languageHints = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                    Text("Comma-separated BCP-47 codes; hinting the languages you actually speak improves recognition.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Custom vocabulary")
+                    TextField("names, jargon, comma-separated", text: Binding(
+                        get: { settings.vocabulary },
+                        set: { settings.vocabulary = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                }
             }
 
             Section("Triggers") {
