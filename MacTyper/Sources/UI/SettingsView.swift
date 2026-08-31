@@ -84,6 +84,7 @@ struct SettingsView: View {
                         set: { settings.vocabulary = $0 }),
                         axis: .vertical)
                         .lineLimit(4...20)
+                        .multilineTextAlignment(.leading)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
                 }
