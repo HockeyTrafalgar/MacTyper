@@ -81,7 +81,9 @@ struct SettingsView: View {
                     Text("Custom vocabulary")
                     TextField("names, jargon, comma-separated", text: Binding(
                         get: { settings.vocabulary },
-                        set: { settings.vocabulary = $0 }))
+                        set: { settings.vocabulary = $0 }),
+                        axis: .vertical)
+                        .lineLimit(4...20)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
                 }
