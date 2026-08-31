@@ -10,9 +10,12 @@ struct SettingsView: View {
     @State private var validation: (ok: Bool, message: String)?
 
     var onMouseTriggerChanged: () -> Void = {}
+    var onAllPermissionsGranted: () -> Void = {}
 
     var body: some View {
         Form {
+            PermissionsSection(onAllGranted: onAllPermissionsGranted)
+
             Section("Gemini API") {
                 TextField("API key", text: $apiKeyDraft)
                     .textFieldStyle(.roundedBorder)
@@ -109,6 +112,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 620)
+        .frame(width: 560, height: 780)
     }
 }

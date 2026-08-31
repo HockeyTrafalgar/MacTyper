@@ -7,7 +7,6 @@ final class StatusItemController {
     private let statusItem: NSStatusItem
     var onToggleDictation: (() -> Void)?
     var onOpenSettings: (() -> Void)?
-    var onOpenPermissions: (() -> Void)?
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -22,9 +21,6 @@ final class StatusItemController {
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        let perms = NSMenuItem(title: "Permissions…", action: #selector(openPermissions), keyEquivalent: "")
-        perms.target = self
-        menu.addItem(perms)
         menu.addItem(.separator())
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let about = NSMenuItem(title: "MacTyper \(version)", action: nil, keyEquivalent: "")
@@ -52,5 +48,4 @@ final class StatusItemController {
 
     @objc private func toggleDictation() { onToggleDictation?() }
     @objc private func openSettings() { onOpenSettings?() }
-    @objc private func openPermissions() { onOpenPermissions?() }
 }

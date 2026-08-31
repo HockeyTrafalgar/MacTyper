@@ -12,7 +12,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mouse: MouseLongPressMonitor!
 
     private var settingsWindow: NSWindow?
-    private var onboardingWindow: NSWindow?
     private var tapRetryTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -28,7 +27,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = StatusItemController()
         statusItem.onToggleDictation = { [weak self] in self?.controller.toggleFromMenu() }
         statusItem.onOpenSettings = { [weak self] in self?.showSettings() }
-        statusItem.onOpenPermissions = { [weak self] in self?.showOnboarding() }
         controller.onStateChange = { [weak self] recording in
             self?.statusItem.setRecording(recording)
         }
@@ -69,8 +67,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         startInputMonitors()
 
-        if !Permissions.allGranted {
-            showOnboarding()
+        if !Permissions.allGranted || AppSettings.shared.apiKey.isEmpty {
+            showSettings()
         }
         Log.app.info("🟢 ready — hold Right ⌘ to talk")
     }
@@ -112,9 +110,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showSettings() {
         if settingsWindow == nil {
-            let view = SettingsView(onMouseTriggerChanged: { [weak self] in
-                self?.reconfigureMouseTrigger()
-            })
+            let view = SettingsView(
+                onMouseTriggerChanged: { [weak self] in
+                    self?.reconfigureMouseTrigger()
+                },
+                onAllPermissionsGranted: { [weak self] in
+                    // Permissions may have just gone live — make sure the taps exist.
+                    self?.startInputMonitors()
+                })
             let win = NSWindow(contentViewController: NSHostingController(rootView: view))
             win.title = "MacTyper Settings"
             win.styleMask = [.titled, .closable, .miniaturizable]
@@ -123,23 +126,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsWindow?.center()
         settingsWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    private func showOnboarding() {
-        if onboardingWindow == nil {
-            let view = OnboardingView(onAllGranted: { [weak self] in
-                // Permissions may have just gone live — make sure the taps exist.
-                self?.startInputMonitors()
-            })
-            let win = NSWindow(contentViewController: NSHostingController(rootView: view))
-            win.title = "MacTyper Permissions"
-            win.styleMask = [.titled, .closable]
-            win.isReleasedWhenClosed = false
-            onboardingWindow = win
-        }
-        onboardingWindow?.center()
-        onboardingWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 

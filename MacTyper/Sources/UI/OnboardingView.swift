@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// First-run permissions flow. Polls the three TCC preflights every second
-/// and deep-links to the matching System Settings pane. Input Monitoring
-/// grants sometimes only take effect after a relaunch — the row says so.
-struct OnboardingView: View {
+/// Permissions section embedded in the Settings window. Polls the three
+/// TCC preflights every second and deep-links to the matching System
+/// Settings pane. Input Monitoring grants sometimes only take effect after
+/// a relaunch — the row says so.
+struct PermissionsSection: View {
     @State private var mic = Permissions.microphoneGranted
     @State private var ax = Permissions.accessibilityGranted
     @State private var listen = Permissions.inputMonitoringGranted
@@ -12,12 +13,7 @@ struct OnboardingView: View {
     var onAllGranted: () -> Void = {}
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Welcome to MacTyper")
-                .font(.title.bold())
-            Text("Hold Right ⌘ (or long-press the left mouse button in a text field) and speak — your words are typed where the cursor is. MacTyper needs three permissions:")
-                .fixedSize(horizontal: false, vertical: true)
-
+        Section {
             permissionRow(
                 granted: mic,
                 icon: "mic.fill",
@@ -41,20 +37,20 @@ struct OnboardingView: View {
                 detail: "Detects the Right ⌘ / F18 / mouse triggers. If dictation doesn't react after granting, quit and reopen MacTyper.",
                 request: { Permissions.requestInputMonitoring() },
                 pane: .inputMonitoring)
-
+        } header: {
+            Text("Permissions")
+        } footer: {
             if mic && ax && listen {
-                Label("All set! Hold Right ⌘ and speak.", systemImage: "checkmark.seal.fill")
-                    .font(.headline)
+                Label("All permissions granted — hold Right ⌘ and speak.", systemImage: "checkmark.seal.fill")
                     .foregroundStyle(.green)
             }
         }
-        .padding(28)
-        .frame(width: 560)
         .onReceive(timer) { _ in
+            let allBefore = mic && ax && listen
             mic = Permissions.microphoneGranted
             ax = Permissions.accessibilityGranted
             listen = Permissions.inputMonitoringGranted
-            if mic && ax && listen { onAllGranted() }
+            if !allBefore && mic && ax && listen { onAllGranted() }
         }
     }
 
@@ -63,10 +59,10 @@ struct OnboardingView: View {
                                request: @escaping () -> Void, pane: Permissions.Pane) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: granted ? "checkmark.circle.fill" : icon)
-                .font(.title2)
+                .font(.title3)
                 .foregroundStyle(granted ? .green : .secondary)
-                .frame(width: 30)
-            VStack(alignment: .leading, spacing: 4) {
+                .frame(width: 26)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.headline)
                 Text(detail).font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -79,7 +75,6 @@ struct OnboardingView: View {
                 }
             }
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
+        .padding(.vertical, 2)
     }
 }
