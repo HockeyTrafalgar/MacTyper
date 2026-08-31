@@ -1,0 +1,61 @@
+name: MacTyper
+options:
+  bundleIdPrefix: com.timurvalishev
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  MacTyper:
+    type: application
+    platform: macOS
+    sources:
+      - path: MacTyper/Sources
+    info:
+      path: MacTyper/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: MacTyper
+        CFBundleIdentifier: com.timurvalishev.mactyper
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSUIElement: true
+        LSMinimumSystemVersion: "14.0"
+        NSMicrophoneUsageDescription: "MacTyper records your voice while you hold the dictation trigger, to transcribe it into text."
+        NSHumanReadableCopyright: "MIT License"
+    entitlements:
+      path: MacTyper/Resources/MacTyper.entitlements
+      properties:
+        com.apple.security.device.audio-input: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.timurvalishev.mactyper
+        INFOPLIST_KEY_LSUIElement: YES
+  MacTyperTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: MacTyper
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/MacTyper.app/Contents/MacOS/MacTyper"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+schemes:
+  MacTyper:
+    build:
+      targets:
+        MacTyper: all
+        MacTyperTests: [test]
+    test:
+      targets:
+        - MacTyperTests
