@@ -17,10 +17,19 @@ struct SettingsView: View {
             PermissionsSection(onAllGranted: onAllPermissionsGranted)
 
             Section("Gemini API") {
-                TextField("API key", text: $apiKeyDraft)
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-                    .font(.system(.body, design: .monospaced))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("API key")
+                    TextField("", text: $apiKeyDraft, prompt: Text("AIza…"))
+                        .labelsHidden()
+                        .multilineTextAlignment(.leading)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                        .font(.system(.callout, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Link("Get a key at aistudio.google.com",
+                         destination: URL(string: "https://aistudio.google.com/apikey")!)
+                        .font(.caption)
+                }
                 HStack {
                     Button("Save & Test Key") {
                         let key = apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -53,17 +62,17 @@ struct SettingsView: View {
                             .foregroundStyle(.orange)
                     }
                 }
-                Link("Get a key at aistudio.google.com",
-                     destination: URL(string: "https://aistudio.google.com/apikey")!)
-                    .font(.caption)
-
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Model")
-                    TextField("gemini-3.5-transcribe-live", text: Binding(
+                    TextField("", text: Binding(
                         get: { settings.geminiModel },
-                        set: { settings.geminiModel = $0 }))
+                        set: { settings.geminiModel = $0 }),
+                        prompt: Text("gemini-3.5-transcribe-live"))
+                        .labelsHidden()
+                        .multilineTextAlignment(.leading)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Text("Gemini Live transcription model ID — change only when Google ships a newer one.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
